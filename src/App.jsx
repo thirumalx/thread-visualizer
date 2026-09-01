@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import './App.css';
@@ -62,15 +62,19 @@ function App() {
 
     const getThreadStats = () => {
     if (threads.length === 0) return null;
-    let totalBlockedCount = 0;
-    let totalWaitedCount = 0;
+    let currentBlocked = 0;
+    let currentWaiting = 0;
+    let currentRunnable = 0;
     let totalBlockedTime = 0;
     let totalWaitedTime = 0;
     let hasTimeMetrics = true;
 
     threads.forEach(t => {
-      totalBlockedCount += t['blocked-count'] || 0;
-      totalWaitedCount += t['waited-count'] || 0;
+      const state = t['thread-state'];
+      if (state === 'BLOCKED') currentBlocked++;
+      if (state === 'WAITING' || state === 'TIMED_WAITING') currentWaiting++;
+      if (state === 'RUNNABLE') currentRunnable++;
+
       if (t['blocked-time'] === -1 || t['waited-time'] === -1) {
         hasTimeMetrics = false;
       } else {
@@ -80,8 +84,9 @@ function App() {
     });
 
     return {
-      avgBlockedCount: Math.round(totalBlockedCount / threads.length),
-      avgWaitedCount: Math.round(totalWaitedCount / threads.length),
+      currentBlocked,
+      currentWaiting,
+      currentRunnable,
       avgBlockedTime: hasTimeMetrics ? Math.round(totalBlockedTime / threads.length) + ' ms' : 'N/A',
       avgWaitedTime: hasTimeMetrics ? Math.round(totalWaitedTime / threads.length) + ' ms' : 'N/A',
       hasTimeMetrics
@@ -236,14 +241,18 @@ function App() {
               
               {threadStats && (
                 <div className="stats-container">
-                  <h3>Average Metrics</h3>
+                  <h3>Metrics</h3>
+                  <div className="stat-row">
+                    <span className="stat-label">Runnable Count:</span>
+                    <span className="stat-value">{threadStats.currentRunnable}</span>
+                  </div>
                   <div className="stat-row">
                     <span className="stat-label">Blocked Count:</span>
-                    <span className="stat-value">{threadStats.avgBlockedCount} / thread</span>
+                    <span className="stat-value">{threadStats.currentBlocked}</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-label">Waited Count:</span>
-                    <span className="stat-value">{threadStats.avgWaitedCount} / thread</span>
+                    <span className="stat-value">{threadStats.currentWaiting}</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-label">Blocked Time:</span>
