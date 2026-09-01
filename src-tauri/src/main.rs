@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    passvault_lib::run()
+    thread_visualizer_lib::run()
 }
