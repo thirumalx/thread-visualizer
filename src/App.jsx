@@ -1,16 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import './App.css';
 import { parseJBossCLIFormat } from './parser';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readTextFile } from '@tauri-apps/plugin-fs';
-
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 function App() {
   const [threads, setThreads] = useState([]);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const checkForUpdates = async () => {
+      try {
+        const update = await check();
+        if (update) {
+          console.log(`Found update ${update.version} from ${update.date}`);
+          let downloaded = 0;
+          let contentLength = 0;
+          await update.downloadAndInstall((event) => {
+            switch (event.event) {
+              case 'Started':
+                contentLength = event.data.contentLength;
+                console.log(`started downloading ${event.data.contentLength} bytes`);
+                break;
+              case 'Progress':
+                downloaded += event.data.chunkLength;
+                console.log(`downloaded ${downloaded} from ${contentLength}`);
+                break;
+              case 'Finished':
+                console.log('download finished');
+                break;
+            }
+          });
+          console.log('update installed, relaunching...');
+          await relaunch();
+        }
+      } catch (err) {
+        console.error('Failed to check for updates:', err);
+      }
+    };
+    checkForUpdates();
+  }, []);
 
   const handleFileUpload = async () => {
     try {
