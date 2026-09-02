@@ -406,3 +406,45 @@ h1 {
   color: rgba(255, 255, 255, 0.035);
   font-style: italic;
 }
+
+.status-badge.fire {
+  animation: flicker 1.2s infinite alternate;
+  background: linear-gradient(0deg, rgba(243, 7, 7, 0.4) 0%, rgba(230, 68, 4, 0.4) 100%);
+  color: #fef08a;
+  border-color: #fd1606;
+  text-shadow: 0 0 4px rgba(239, 68, 68, 0.8), 0 0 8px rgba(245, 158, 11, 0.8);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5), inset 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+@keyframes flicker {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  25% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+
+  75% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+}
+
+.status-badge.fire::after {
+  content: "🔥";
+  margin: 0 5px;
+  animation: flicker 1s infinite alternate;
+}

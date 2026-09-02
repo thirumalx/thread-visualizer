@@ -60,7 +60,7 @@ function App() {
     };
   };
 
-    const getThreadStats = () => {
+  const getThreadStats = () => {
     if (threads.length === 0) return null;
     let currentBlocked = 0;
     let currentWaiting = 0;
@@ -115,29 +115,29 @@ function App() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([k, v]) => {
-         const item = JSON.parse(k);
-         let statusLabel = item.threadState || 'UNKNOWN';
-         statusLabel = String(statusLabel);
-         const m = item.methodName || '';
-         const c = item.className || '';
-         
-         if (m === 'socketRead0' || m === 'read' || c.includes('SocketInputStream')) {
-             statusLabel = 'Hung (Network)';
-         } else if (c.includes('HikariPool') || c.includes('getConnection') || c.includes('BasicDataSource')) {
-             statusLabel = 'Hung (Database)';
-         } else if (c.includes('log4j') || c.includes('logback')) {
-             statusLabel = 'Blocked (Logging)';
-         } else if (m === 'park' || m === 'wait' || m === 'epollWait') {
-             statusLabel = 'Idle/Parked';
-         } else if (m === 'accept' || c.includes('Acceptor')) {
-             statusLabel = 'Listening';
-         } else if (c.includes('HashMap')) {
-             statusLabel = 'Spinning (CPU)';
-         } else if (statusLabel === 'RUNNABLE') {
-             statusLabel = 'Running';
-         }
-         
-         return { ...item, count: v, statusLabel };
+        const item = JSON.parse(k);
+        let statusLabel = item.threadState || 'UNKNOWN';
+        statusLabel = String(statusLabel);
+        const m = item.methodName || '';
+        const c = item.className || '';
+
+        if (m === 'socketRead0' || m === 'read' || c.includes('SocketInputStream')) {
+          statusLabel = 'Hung (Network)';
+        } else if (c.includes('HikariPool') || c.includes('getConnection') || c.includes('BasicDataSource')) {
+          statusLabel = 'Hung (Database)';
+        } else if (c.includes('log4j') || c.includes('logback')) {
+          statusLabel = 'Blocked (Logging)';
+        } else if (m === 'park' || m === 'wait' || m === 'epollWait') {
+          statusLabel = 'Idle/Parked';
+        } else if (m === 'accept' || c.includes('Acceptor')) {
+          statusLabel = 'Listening';
+        } else if (c.includes('HashMap')) {
+          statusLabel = 'Spinning (CPU)';
+        } else if (statusLabel === 'RUNNABLE') {
+          statusLabel = 'Running';
+        }
+
+        return { ...item, count: v, statusLabel };
       });
   };
 
@@ -148,7 +148,7 @@ function App() {
 
     const topMethod = topMethods[0];
     const percentage = Math.round((topMethod.count / threads.length) * 100);
-    
+
     if (percentage > 15 && topMethod.count > 5) {
       const representativeThread = threads.find(t => {
         const stack = t['stack-trace'];
@@ -162,42 +162,45 @@ function App() {
       let rootCause = '';
       let recommendation = '';
       let title = "Critical Bottleneck Detected";
+      let description = "The worker thread pool is becoming exhausted.";
 
       if (methodName === 'socketRead0' || methodName === 'read' || fullClassName.includes('SocketInputStream')) {
-         rootCause = "Threads are waiting indefinitely for a response from an external network call or database query. This indicates a missing read timeout.";
-         recommendation = "Set a connection/read timeout explicitly (e.g., 5s connection, 10-30s read) so threads can fail gracefully instead of hanging forever.";
+        rootCause = "Threads are waiting indefinitely for a response from an external network call or database query. This indicates a missing read timeout.";
+        recommendation = "Set a connection/read timeout explicitly (e.g., 5s connection, 10-30s read) so threads can fail gracefully instead of hanging forever.";
       } else if (fullClassName.includes('HikariPool') || fullClassName.includes('getConnection') || fullClassName.includes('BasicDataSource')) {
-         rootCause = "Threads are stuck waiting to acquire a Database Connection from the pool. The connection pool is likely exhausted.";
-         recommendation = "Increase the database connection pool size, or investigate the application for connection leaks where DB connections are not being closed in a finally block.";
+        rootCause = "Threads are stuck waiting to acquire a Database Connection from the pool. The connection pool is likely exhausted.";
+        recommendation = "Increase the database connection pool size, or investigate the application for connection leaks where DB connections are not being closed in a finally block.";
       } else if (fullClassName.includes('log4j') || fullClassName.includes('logback')) {
-         rootCause = "Threads are blocked attempting to write logs. This usually happens if the disk is slow, or if synchronous logging is writing massive amounts of data.";
-         recommendation = "Switch to Async Appenders for logging, or reduce the logging level (e.g., from DEBUG to INFO or WARN).";
+        rootCause = "Threads are blocked attempting to write logs. This usually happens if the disk is slow, or if synchronous logging is writing massive amounts of data.";
+        recommendation = "Switch to Async Appenders for logging, or reduce the logging level (e.g., from DEBUG to INFO or WARN).";
       } else if (methodName === 'park' || methodName === 'wait' || methodName === 'epollWait') {
-         title = "Idle Thread Pool Detected";
-         rootCause = "These threads are safely parked or waiting in a queue for new tasks. This is perfectly normal for idle thread pools.";
-         recommendation = "If the system is idle, no action is needed. If the system is hanging, check if upstream systems are failing to push events into this queue.";
+        title = "Idle Thread Pool Detected";
+        description = "A large number of threads are idle and waiting for tasks.";
+        rootCause = "These threads are safely parked or waiting in a queue for new tasks. This is perfectly normal for idle thread pools.";
+        recommendation = "If the system is idle, no action is needed. If the system is hanging, check if upstream systems are failing to push events into this queue.";
       } else if (methodName === 'accept' || fullClassName.includes('Acceptor')) {
-         title = "Normal Server Listeners";
-         rootCause = "These threads are waiting to accept incoming network connections. This is standard healthy behavior for web servers like Tomcat or Undertow.";
-         recommendation = "No action needed. These are healthy idle listener threads.";
+        title = "Normal Server Listeners";
+        description = "Normal network listeners waiting for connections.";
+        rootCause = "These threads are waiting to accept incoming network connections. This is standard healthy behavior for web servers like Tomcat or Undertow.";
+        recommendation = "No action needed. These are healthy idle listener threads.";
       } else if (fullClassName.includes('HashMap')) {
-         rootCause = "Threads are stuck performing operations on a HashMap. If this is a standard java.util.HashMap, it might be caught in a CPU-spinning infinite loop due to unsafe concurrent access.";
-         recommendation = "Check the stack trace for concurrent modifications to a non-thread-safe collection, and replace it with ConcurrentHashMap if necessary.";
+        rootCause = "Threads are stuck performing operations on a HashMap. If this is a standard java.util.HashMap, it might be caught in a CPU-spinning infinite loop due to unsafe concurrent access.";
+        recommendation = "Check the stack trace for concurrent modifications to a non-thread-safe collection, and replace it with ConcurrentHashMap if necessary.";
       } else {
-         rootCause = "A large number of threads are occupied executing this exact same method, which is creating a significant bottleneck.";
-         recommendation = "Investigate the service or logic being called in this stack trace to understand why it is taking so long or hanging.";
+        rootCause = "A large number of threads are occupied executing this exact same method, which is creating a significant bottleneck.";
+        recommendation = "Investigate the service or logic being called in this stack trace to understand why it is taking so long or hanging.";
       }
 
       return {
         title: title,
-        description: "The worker thread pool is becoming exhausted.",
+        description: description,
         details: "Out of " + threads.length + " threads in the dump, " + topMethod.count + " threads (" + percentage + "%) are stuck in the exact same state: " + topMethod.className + "." + topMethod.methodName,
         rootCause: rootCause,
         recommendation: recommendation,
         stack: representativeThread ? representativeThread['stack-trace'] : []
       };
     }
-    
+
     return {
       title: "Health Check Passed",
       description: "Thread distribution looks normal.",
@@ -213,8 +216,8 @@ function App() {
   return (
     <div className="container">
       <div className="watermark-kural">
-        <div className="tamil">எப்பொருள் யார்யார்வாய்க் கேட்பினும் அப்பொருள்<br/>மெய்ப்பொருள் காண்ப தறிவு.</div>
-        <div className="english">Whatever thing from whosoever's lips you hear,<br/>it is wisdom to grasp the true meaning of that thing.</div>
+        <div className="tamil">எப்பொருள் யார்யார்வாய்க் கேட்பினும் அப்பொருள்<br />மெய்ப்பொருள் காண்ப தறிவு.</div>
+        <div className="english">Whatever thing from whosoever's lips you hear,<br />it is wisdom to grasp the true meaning of that thing.</div>
       </div>
       <header>
         <div className="logo-title">
@@ -222,14 +225,14 @@ function App() {
           <h1>Thread Dump Visualizer</h1>
         </div>
         <div className="upload-container">
-           <button className="upload-btn" onClick={handleFileUpload}>
-              Select Thread Dump
-           </button>
+          <button className="upload-btn" onClick={handleFileUpload}>
+            Select Thread Dump
+          </button>
         </div>
       </header>
-      
+
       {error && <div className="error">{error}</div>}
-      
+
       {threads.length > 0 && (
         <main className="dashboard">
           <div className="card overview">
@@ -238,7 +241,7 @@ function App() {
               <div className="chart-container">
                 <Pie data={getChartData()} options={{ plugins: { legend: { position: 'right', labels: { color: '#fff' } } } }} />
               </div>
-              
+
               {threadStats && (
                 <div className="stats-container">
                   <h3>Metrics</h3>
@@ -257,13 +260,13 @@ function App() {
                   <div className="stat-row">
                     <span className="stat-label">Blocked Time:</span>
                     <span className="stat-value" style={{ color: threadStats.hasTimeMetrics ? '#f8fafc' : '#fca5a5' }}>
-                       {threadStats.avgBlockedTime}
+                      {threadStats.avgBlockedTime}
                     </span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-label">Waited Time:</span>
                     <span className="stat-value" style={{ color: threadStats.hasTimeMetrics ? '#f8fafc' : '#fca5a5' }}>
-                       {threadStats.avgWaitedTime}
+                      {threadStats.avgWaitedTime}
                     </span>
                   </div>
                   {!threadStats.hasTimeMetrics && (
@@ -275,7 +278,7 @@ function App() {
               )}
             </div>
           </div>
-          
+
           <div className="card bottlenecks">
             <h2>Top Bottlenecks</h2>
             <ul>
@@ -283,7 +286,7 @@ function App() {
                 <li key={i}>
                   <div className="bottleneck-stats">
                     <span className="count">{item.count}</span>
-                    <span className={`status-badge ${item.statusLabel.includes('Hung') || item.statusLabel.includes('Spinning') ? 'danger' : item.statusLabel.includes('Idle') || item.statusLabel.includes('Listen') ? 'info' : 'warning'}`}>{item.statusLabel}</span>
+                    <span className={`status-badge ${item.statusLabel.includes('Hung') ? 'danger fire' : item.statusLabel.includes('Spinning') ? 'danger' : item.statusLabel.includes('Idle') || item.statusLabel.includes('Listen') ? 'info' : 'warning'}`}>{item.statusLabel}</span>
                   </div>
                   <div className="method-details">
                     <div className="method-name">{item.className}.{item.methodName}</div>
@@ -298,7 +301,7 @@ function App() {
             <div className="card insights full-width">
               <h2>{insight.title}</h2>
               <p className="insight-desc"><strong>{insight.description}</strong> {insight.details}</p>
-              
+
               {insight.rootCause && (
                 <div className="insight-section">
                   <h3>Root Cause Analysis</h3>
