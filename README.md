@@ -38,12 +38,11 @@ release.yml
 
 ## How to trigger it:
 
-Make sure this project is pushed to a GitHub repository.
-Commit all your changes:
-
+Modify the version in 
 ```bash
-git add .
-git commit -m "Release v1.0.0"
+package.json
+tauri.conf.json
+Cargo.toml
 ```
 
 Tag your release with a version number (this is what triggers the automated builders!):

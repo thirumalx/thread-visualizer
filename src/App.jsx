@@ -7,13 +7,23 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { getVersion } from '@tauri-apps/api/app';
+import { listen } from '@tauri-apps/api/event';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 function App() {
   const [threads, setThreads] = useState([]);
   const [error, setError] = useState('');
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
+    getVersion().then(setAppVersion).catch(console.error);
+    
+    const unlistenAbout = listen('show-about', () => {
+      setIsAboutOpen(true);
+    });
+    
     const checkForUpdates = async () => {
       try {
         const update = await check();
@@ -44,6 +54,10 @@ function App() {
       }
     };
     checkForUpdates();
+
+    return () => {
+      unlistenAbout.then(f => f());
+    };
   }, []);
 
   const handleFileUpload = async () => {
@@ -363,6 +377,22 @@ function App() {
             </div>
           )}
         </main>
+      )}
+
+      {isAboutOpen && (
+        <div className="modal-overlay" onClick={() => setIsAboutOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2>Thread Dump Visualizer</h2>
+            <p style={{ color: '#94a3b8' }}>Version {appVersion || 'Unknown'}</p>
+            <p>Developed by <strong>Thirumal</strong></p>
+            <p style={{ fontSize: '0.9rem', lineHeight: '1.5', marginTop: '1rem', color: '#cbd5e1' }}>
+              A fast, local-first visualizer for analyzing Java thread dumps and identifying performance bottlenecks.
+            </p>
+            <button className="upload-btn" onClick={() => setIsAboutOpen(false)} style={{ marginTop: '1.5rem' }}>
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg-color: #0f172a;
   --card-bg: rgba(30, 41, 59, 0.7);
   --text-color: #f8fafc;
@@ -451,6 +451,34 @@ h1 {
 
 .status-badge.fire::after {
   content: "🔥";
-  margin: 0 5px;
   animation: flicker 1s infinite alternate;
+}
+
+/* About Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  background: linear-gradient(to right, #60a5fa, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
